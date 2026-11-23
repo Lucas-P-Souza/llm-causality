@@ -1,5 +1,6 @@
 from torch import nn
 from transformers import AutoModel
+from transformers.modeling_outputs import SequenceClassifierOutput
 
 PROJECTION_SIZE = 1024
 
@@ -20,7 +21,7 @@ class CausalityClassifier(nn.Module):
             nn.Linear(512, num_labels),
         )
 
-    def forward(self, input_ids, attention_mask, features=None):
+    def forward(self, input_ids, attention_mask, features=None, labels=None):
         hidden = self.encoder(input_ids=input_ids, attention_mask=attention_mask).last_hidden_state
         # average in fp32 even when the encoder runs under bf16 autocast
         hidden = hidden.float()
@@ -29,4 +30,6 @@ class CausalityClassifier(nn.Module):
         fused = self.llm_projection(pooled)
         if self.feature_projection is not None:
             fused = fused + self.feature_projection(features)
-        return self.classifier(fused)
+        logits = self.classifier(fused)
+        loss = nn.functional.cross_entropy(logits, labels) if labels is not None else None
+        return SequenceClassifierOutput(loss=loss, logits=logits)
