@@ -1,5 +1,10 @@
 import argparse
+import json
+from pathlib import Path
 
+import pandas as pd
+import torch
+from sklearn.metrics import accuracy_score, f1_score, precision_recall_fscore_support
 from transformers import (
     AutoTokenizer,
     DataCollatorWithPadding,
@@ -51,7 +56,38 @@ def main():
         train_dataset=train_dataset,
         data_collator=DataCollatorWithPadding(tokenizer),
     )
-    trainer.train()
+    train_result = trainer.train()
+
+    dev_dataset = CausalityDataset("dev", tokenizer)
+    output = trainer.predict(dev_dataset)
+    logits = torch.tensor(output.predictions)
+    y_pred = logits.argmax(dim=-1).tolist()
+    y_true = output.label_ids.tolist()
+
+    precision, recall, f1, _ = precision_recall_fscore_support(
+        y_true, y_pred, labels=[0, 1], zero_division=0
+    )
+    metrics = {
+        "task": "subtask1",
+        "model_name": args.model,
+        "seed": args.seed,
+        "dev_macro_f1": f1_score(y_true, y_pred, average="macro"),
+        "dev_accuracy": accuracy_score(y_true, y_pred),
+        "dev_precision": precision.tolist(),
+        "dev_recall": recall.tolist(),
+        "dev_f1": f1.tolist(),
+        "train_loss": train_result.training_loss,
+    }
+    output_dir = Path(args.output_dir)
+    (output_dir / "metrics.json").write_text(json.dumps(metrics, indent=2))
+    pd.DataFrame(
+        {
+            "index": [row["index"] for row in dev_dataset.rows],
+            "y_true": y_true,
+            "y_pred": y_pred,
+            "probs": logits.softmax(dim=-1).tolist(),
+        }
+    ).to_json(output_dir / "dev_predictions.jsonl", orient="records", lines=True)
 
 
 if __name__ == "__main__":
