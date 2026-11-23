@@ -1,7 +1,8 @@
 from pathlib import Path
 
 import pandas as pd
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset
+from transformers import DataCollatorWithPadding
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 MAX_LENGTH = 256
@@ -28,3 +29,12 @@ class CausalityDataset(Dataset):
             "input_ids": self.encodings["input_ids"][i],
             "attention_mask": self.encodings["attention_mask"][i],
         }
+
+
+def make_dataloader(dataset, tokenizer, batch_size, shuffle):
+    return DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        collate_fn=DataCollatorWithPadding(tokenizer),
+    )
