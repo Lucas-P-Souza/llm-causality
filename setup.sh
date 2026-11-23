@@ -13,3 +13,5 @@ export UV_HTTP_TIMEOUT=600
 uv pip install "torch==2.14.1+cu130" \
   --index-url https://download.pytorch.org/whl/cu130 \
   --extra-index-url https://pypi.org/simple
+uv pip install -r requirements.txt
+python -m spacy download en_core_web_sm
