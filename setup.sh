@@ -15,3 +15,12 @@ uv pip install "torch==2.14.1+cu130" \
   --extra-index-url https://pypi.org/simple
 uv pip install -r requirements.txt
 python -m spacy download en_core_web_sm
+
+mkdir -p data
+for task in causality-detection causal-candidate-extraction causality-identification; do
+  for split in train dev; do
+    file="$task-$split.jsonl"
+    [ -f "data/$file" ] || curl -fsSL -o "data/$file" \
+      "https://zenodo.org/api/records/18183665/files/$file/content"
+  done
+done
